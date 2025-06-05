@@ -261,6 +261,16 @@
       let froalaEditor;
       try {
         froalaEditor = new FroalaEditor(editorDiv, editorConfig);
+
+        // Validate that the editor was created properly
+        if (!froalaEditor || typeof froalaEditor !== 'object') {
+          throw new Error('Froala editor instance is invalid');
+        }
+        
+        // Check if events object exists
+        if (!froalaEditor.events || typeof froalaEditor.events.on !== 'function') {
+          throw new Error('Froala editor events object is not available');
+        }
       } catch (error) {
         logError('Failed to create Froala instance:', error);
         // Restore original element
@@ -276,36 +286,11 @@
         metafieldName: metafieldName
       });
 
-      // Wait for editor to be fully initialized before setting content or focusing
-      froalaEditor.events.on('initialized', function () {
-        log('Froala editor initialized for:', metafieldName);
-        
-        // Set initial content if not set during initialization
-        if (hasInitialContent && !froalaEditor.html.get()) {
-          hasInitialContent = true;
-          try {
-            froalaEditor.html.set(initialContent);
-          } catch (e) {
-            logError('Error setting initial content after init:', e);
-            froalaEditor.html.set("!CHYBA! Neukládat změny, napsat Štěpánovi.");
-          }
-        }
-
-        // Focus editor by default
-        setTimeout(() => {
-          try {
-            froalaEditor.events.focus();
-          } catch (e) {
-            logError('Error focusing editor:', e);
-          }
-        }, 100);
-      });
-
       // Content synchronization
       const syncContent = () => {
         try {
           // Make sure editor is ready
-          if (!froalaEditor || !froalaEditor.html) {
+          if (!froalaEditor || !froalaEditor.html || typeof froalaEditor.html.get !== 'function') {
             logError('Editor not ready for sync');
             return;
           }
@@ -377,28 +362,67 @@
       let syncTimeout;
       let userHasInteracted = false;
 
-      // Wait for editor to be ready before setting up event listeners
-      froalaEditor.events.on('initialized', function () {
-        // Listen for content change events
-        froalaEditor.events.on('contentChanged', function () {
-          userHasInteracted = true;
-          clearTimeout(syncTimeout);
-          syncTimeout = setTimeout(syncContent, 300);
-        });
+      // Wait for editor to be fully initialized before setting content or events
+      try {
+        froalaEditor.events.on('initialized', function () {
+          log('Froala editor initialized for:', metafieldName);
+          
+          // Set initial content if not set during initialization
+          if (hasInitialContent && froalaEditor.html && typeof froalaEditor.html.get === 'function' && !froalaEditor.html.get()) {
+            try {
+              froalaEditor.html.set(initialContent);
+            } catch (e) {
+              logError('Error setting initial content after init:', e);
+              if (froalaEditor.html && typeof froalaEditor.html.set === 'function') {
+                froalaEditor.html.set("!CHYBA! Neukládat změny, napsat Štěpánovi.");
+              }
+            }
+          }
 
-        // Also sync when editor loses focus
-        froalaEditor.events.on('blur', function () {
-          if (userHasInteracted) {
-            clearTimeout(syncTimeout);
-            syncContent();
+          // Focus editor by default
+          setTimeout(() => {
+            try {
+              if (froalaEditor.events && typeof froalaEditor.events.focus === 'function') {
+                froalaEditor.events.focus();
+              }
+            } catch (e) {
+              logError('Error focusing editor:', e);
+            }
+          }, 100);
+
+          // Set up content change listeners after initialization
+          try {
+            froalaEditor.events.on('contentChanged', function () {
+              userHasInteracted = true;
+              clearTimeout(syncTimeout);
+              syncTimeout = setTimeout(syncContent, 300);
+            });
+
+            // Also sync when editor loses focus
+            froalaEditor.events.on('blur', function () {
+              if (userHasInteracted) {
+                clearTimeout(syncTimeout);
+                syncContent();
+              }
+            });
+
+            // Only sync initially if there was actual content
+            if (hasInitialContent) {
+              setTimeout(syncContent, 100);
+            }
+          } catch (e) {
+            logError('Error setting up event listeners:', e);
           }
         });
-  
-        // Only sync initially if there was actual content
-        if (hasInitialContent) {
-          setTimeout(syncContent, 100);
-        }
-      });
+      } catch (error) {
+        logError('Error setting up initialized event:', error);
+        // Clean up if we can't set up events
+        textFieldContainer.style.display = '';
+        editorWrapper.remove();
+        processedElements.delete(textarea);
+        froalaInstances.delete(editorId);
+        return null;
+      }
 
       log('WYSIWYG editor created successfully for:', metafieldName);
       return editorWrapper;
@@ -548,7 +572,9 @@
       if (observer) observer.disconnect();
       froalaInstances.forEach((instance, id) => {
         try {
-          instance.editor.destroy();
+          if (instance.editor && typeof instance.editor.destroy === 'function') {
+            instance.editor.destroy();
+          }
         } catch (e) {
           logError(e);
         }
@@ -577,7 +603,9 @@
       if (observer) observer.disconnect();
       froalaInstances.forEach((instance) => {
         try {
-          instance.editor.destroy();
+          if (instance.editor && typeof instance.editor.destroy === 'function') {
+            instance.editor.destroy();
+          }
         } catch (e) {
           logError(e);
         }
@@ -597,11 +625,13 @@
     forceSync: () => {
       froalaInstances.forEach((instance, id) => {
         try {
-          const content = instance.editor.html.get();
-          instance.originalTextarea.value = content;
-          instance.originalTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-          instance.originalTextarea.dispatchEvent(new Event('change', { bubbles: true }));
-          log('Force synced:', instance.metafieldName);
+          if (instance.editor && instance.editor.html && typeof instance.editor.html.get === 'function') {
+            const content = instance.editor.html.get();
+            instance.originalTextarea.value = content;
+            instance.originalTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+            instance.originalTextarea.dispatchEvent(new Event('change', { bubbles: true }));
+            log('Force synced:', instance.metafieldName);
+          }
         } catch (e) {
           logError('Error force syncing:', instance.metafieldName, e);
         }
