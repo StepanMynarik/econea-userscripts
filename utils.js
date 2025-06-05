@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils - Froala Edition
 // @namespace    https://econea.cz/
-// @version      1.3.0
+// @version      1.3.1
 // @description  Replaces specified Shopify metafield editors with Froala WYSIWYG editor
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -247,10 +247,20 @@
       editorWrapper.originalContainer = textFieldContainer;
       processedElements.add(textarea);
 
+      // Get initial content before creating editor
+      const initialContent = textarea.value || '';
+      let hasInitialContent = initialContent && initialContent.trim();
+
+      // Add initial content to config if present
+      const editorConfig = { ...CONFIG.editorConfig };
+      if (hasInitialContent) {
+        editorConfig.htmlSet = initialContent;
+      }
+
       // Initialize Froala
       let froalaEditor;
       try {
-        froalaEditor = new FroalaEditor(editorDiv, CONFIG.editorConfig);
+        froalaEditor = new FroalaEditor(editorDiv, editorConfig);
       } catch (error) {
         logError('Failed to create Froala instance:', error);
         // Restore original element
@@ -266,28 +276,40 @@
         metafieldName: metafieldName
       });
 
-      // Set initial content
-      const initialContent = textarea.value || '';
-      let hasInitialContent = false;
-
-      if (initialContent && initialContent.trim()) {
-        hasInitialContent = true;
-        try {
-          froalaEditor.html.set(initialContent);
-        } catch (e) {
-          logError('Error setting initial content:', e);
-          froalaEditor.html.set("!CHYBA! Neukládat změny, napsat Štěpánovi.");
+      // Wait for editor to be fully initialized before setting content or focusing
+      froalaEditor.events.on('initialized', function () {
+        log('Froala editor initialized for:', metafieldName);
+        
+        // Set initial content if not set during initialization
+        if (hasInitialContent && !froalaEditor.html.get()) {
+          hasInitialContent = true;
+          try {
+            froalaEditor.html.set(initialContent);
+          } catch (e) {
+            logError('Error setting initial content after init:', e);
+            froalaEditor.html.set("!CHYBA! Neukládat změny, napsat Štěpánovi.");
+          }
         }
-      }
 
-      // Focus editor by default
-      setTimeout(() => {
-        froalaEditor.events.focus();
-      }, 100);
+        // Focus editor by default
+        setTimeout(() => {
+          try {
+            froalaEditor.events.focus();
+          } catch (e) {
+            logError('Error focusing editor:', e);
+          }
+        }, 100);
+      });
 
       // Content synchronization
       const syncContent = () => {
         try {
+          // Make sure editor is ready
+          if (!froalaEditor || !froalaEditor.html) {
+            logError('Editor not ready for sync');
+            return;
+          }
+          
           const content = froalaEditor.html.get();
           
           // Check if content is just empty paragraph(s)
@@ -355,25 +377,28 @@
       let syncTimeout;
       let userHasInteracted = false;
 
-      // Listen for content change events
-      froalaEditor.events.on('contentChanged', function () {
-        userHasInteracted = true;
-        clearTimeout(syncTimeout);
-        syncTimeout = setTimeout(syncContent, 300);
-      });
-
-      // Also sync when editor loses focus
-      froalaEditor.events.on('blur', function () {
-        if (userHasInteracted) {
+      // Wait for editor to be ready before setting up event listeners
+      froalaEditor.events.on('initialized', function () {
+        // Listen for content change events
+        froalaEditor.events.on('contentChanged', function () {
+          userHasInteracted = true;
           clearTimeout(syncTimeout);
-          syncContent();
+          syncTimeout = setTimeout(syncContent, 300);
+        });
+
+        // Also sync when editor loses focus
+        froalaEditor.events.on('blur', function () {
+          if (userHasInteracted) {
+            clearTimeout(syncTimeout);
+            syncContent();
+          }
+        });
+  
+        // Only sync initially if there was actual content
+        if (hasInitialContent) {
+          setTimeout(syncContent, 100);
         }
       });
-
-      // Only sync initially if there was actual content
-      if (hasInitialContent) {
-        setTimeout(syncContent, 100);
-      }
 
       log('WYSIWYG editor created successfully for:', metafieldName);
       return editorWrapper;
