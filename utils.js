@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils - Froala Edition
 // @namespace    https://econea.cz/
-// @version      1.3.4
+// @version      1.3.5
 // @description  Replaces specified Shopify metafield editors with Froala WYSIWYG editor
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -235,6 +235,10 @@
       const editorId = 'wysiwyg-' + metafieldId + '-' + Date.now();
       const editorDiv = document.createElement('div');
       editorDiv.id = editorId;
+
+            // Get initial content before creating editor
+      const initialContent = textarea.value || '';
+      let hasInitialContent = initialContent && initialContent.trim();
       
       // Set initial content directly in the div if present
       if (hasInitialContent) {
@@ -252,10 +256,6 @@
       editorWrapper.originalElement = textarea;
       editorWrapper.originalContainer = textFieldContainer;
       processedElements.add(textarea);
-
-      // Get initial content before creating editor
-      const initialContent = textarea.value || '';
-      let hasInitialContent = initialContent && initialContent.trim();
 
       // Prepare editor config - don't set htmlSet as it's not reliable
       const editorConfig = { ...CONFIG.editorConfig };
