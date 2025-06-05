@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils - Froala Edition
 // @namespace    https://econea.cz/
-// @version      1.3.3
+// @version      1.3.4
 // @description  Replaces specified Shopify metafield editors with Froala WYSIWYG editor
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -235,6 +235,12 @@
       const editorId = 'wysiwyg-' + metafieldId + '-' + Date.now();
       const editorDiv = document.createElement('div');
       editorDiv.id = editorId;
+      
+      // Set initial content directly in the div if present
+      if (hasInitialContent) {
+        editorDiv.innerHTML = initialContent;
+        log('Pre-populating editor div with initial content for', metafieldName);
+      }
 
       editorWrapper.appendChild(editorDiv);
 
@@ -251,10 +257,12 @@
       const initialContent = textarea.value || '';
       let hasInitialContent = initialContent && initialContent.trim();
 
-      // Add initial content to config if present
+      // Prepare editor config - don't set htmlSet as it's not reliable
       const editorConfig = { ...CONFIG.editorConfig };
+      
+      // Log initial content for debugging
       if (hasInitialContent) {
-        editorConfig.htmlSet = initialContent;
+        log('Initial content found for', metafieldName, ':', initialContent.substring(0, 100) + (initialContent.length > 100 ? '...' : ''));
       }
 
       // Initialize Froala with proper error handling
@@ -375,16 +383,22 @@
           froalaEditor.events.on('initialized', function () {
             log('Froala editor initialized for:', metafieldName);
             
-            // Set initial content if not set during initialization
-            if (hasInitialContent && froalaEditor.html && typeof froalaEditor.html.get === 'function' && !froalaEditor.html.get()) {
+            // Set initial content after editor is fully initialized
+            if (hasInitialContent) {
               try {
+                log('Setting initial content for', metafieldName, ':', initialContent.length, 'characters');
                 froalaEditor.html.set(initialContent);
+                log('Initial content set successfully');
               } catch (e) {
                 logError('Error setting initial content after init:', e);
-                if (froalaEditor.html && typeof froalaEditor.html.set === 'function') {
+                try {
                   froalaEditor.html.set("!CHYBA! Neukládat změny, napsat Štěpánovi.");
+                } catch (e2) {
+                  logError('Error setting error message:', e2);
                 }
               }
+            } else {
+              log('No initial content found for', metafieldName);
             }
 
             // Focus editor by default
@@ -414,9 +428,9 @@
                 }
               });
 
-              // Only sync initially if there was actual content
+              // Sync initially if there was actual content (after a small delay)
               if (hasInitialContent) {
-                setTimeout(syncContent, 100);
+                setTimeout(syncContent, 500);
               }
             } catch (e) {
               logError('Error setting up event listeners:', e);
