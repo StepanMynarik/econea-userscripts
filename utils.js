@@ -1,14 +1,15 @@
 // ==UserScript==
-// @name         Econea Utils
+// @name         Econea Utils - Froala Edition
 // @namespace    https://econea.cz/
-// @version      1.2.5
-// @description  Replaces specified Shopify metafield editors with Quill WYSIWYG editor etc.
+// @version      1.3.0
+// @description  Replaces specified Shopify metafield editors with Froala WYSIWYG editor
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
 // @match        https://admin.shopify.com/store/*/products/*
 // @grant        GM_addStyle
-// @require      https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js
-// @resource     QuillCSS https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css
+// @require      https://cdn.jsdelivr.net/npm/froala-editor@4.5.2/js/froala_editor.pkgd.min.js
+// @resource     FroalaCSS https://cdn.jsdelivr.net/npm/froala-editor@4.5.2/css/froala_editor.pkgd.min.css
+// @resource     FroalaThemeCSS https://cdn.jsdelivr.net/npm/froala-editor@4.5.2/css/themes/gray.min.css
 // @license      MIT
 // ==/UserScript==
 
@@ -24,53 +25,58 @@
     debug: true,
 
     editorConfig: {
-      theme: 'snow',
-      modules: {
-        toolbar: [
-          [{
-            'header': [1, 2, 3, false]
-          }],
-          ['bold', 'italic', 'underline', 'strike'],
-          [{
-            'color': []
-          }, {
-            'background': []
-          }],
-          [{
-            'list': 'ordered'
-          }, {
-            'list': 'bullet'
-          }],
-          [{
-            'indent': '-1'
-          }, {
-            'indent': '+1'
-          }],
-          ['link', 'blockquote', 'code-block'],
-          [{
-            'align': []
-          }],
-          ['clean']
-        ]
+      toolbarButtons: [
+        'bold', 'italic', 'underline', 'strikeThrough', '|',
+        'formatOL', 'formatUL', 'outdent', 'indent', '|',
+        'insertLink', 'quote', 'insertHR', '|',
+        'paragraphFormat', 'fontSize', 'textColor', 'backgroundColor', '|',
+        'align', 'clearFormatting', 'html'
+      ],
+      toolbarButtonsXS: [
+        'bold', 'italic', 'formatOL', 'formatUL', 'insertLink'
+      ],
+      paragraphFormat: {
+        N: 'Normal',
+        H1: 'Heading 1',
+        H2: 'Heading 2',
+        H3: 'Heading 3'
       },
-      placeholder: '',
-      formats: [
-        'header', 'bold', 'italic', 'underline', 'strike',
-        'color', 'background', 'list', 'indent',
-        'link', 'blockquote', 'code-block', 'align'
-      ]
+      fontSize: ['8', '10', '12', '14', '16', '18', '20', '24'],
+      colorsBackground: [
+        '#61BD6D', '#1ABC9C', '#54ACD2', '#2C82C9', '#9365B8', '#475577',
+        '#CCCCCC', '#41A85F', '#00A885', '#3D8EB9', '#2969B0', '#553982',
+        '#28324E', '#000000', '#F7DA64', '#FBA026', '#EB6B56', '#E25041',
+        '#A38F84', '#EFEFEF', '#FFFFFF', '#FAD5A5', '#F9CA88', '#F8AFA6',
+        '#F97A6D', '#C09853', '#DCDCDC', '#D1D5D8'
+      ],
+      colorsText: [
+        '#61BD6D', '#1ABC9C', '#54ACD2', '#2C82C9', '#9365B8', '#475577',
+        '#CCCCCC', '#41A85F', '#00A885', '#3D8EB9', '#2969B0', '#553982',
+        '#28324E', '#000000', '#F7DA64', '#FBA026', '#EB6B56', '#E25041',
+        '#A38F84', '#EFEFEF', '#FFFFFF'
+      ],
+      heightMin: 120,
+      heightMax: 300,
+      placeholderText: '',
+      theme: 'gray',
+      attribution: true, // Remove "Powered by Froala" if you have a license
+      // License key - you'll need to add your own if you have one
+      // key: 'YOUR_LICENSE_KEY_HERE'
     }
   };
 
   let processedElements = new Set();
   let observer;
-  let quillInstances = new Map();
-  let quillReady = false;
+  let froalaInstances = new Map();
+  let froalaReady = false;
   let initAttempts = 0;
   const MAX_INIT_ATTEMPTS = 20;
 
+  // Load Froala CSS
   GM_addStyle(`
-    @import url('https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css');
+    @import url('https://cdn.jsdelivr.net/npm/froala-editor@4.5.2/css/froala_editor.pkgd.min.css');
+    @import url('https://cdn.jsdelivr.net/npm/froala-editor@4.5.2/css/themes/gray.min.css');
+    
     /* Main wrapper styling */
     .wysiwyg-editor-wrapper {
       margin: 0 !important;
@@ -82,23 +88,27 @@
       overflow: hidden !important;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
     }
-    /* Container styling */
-    .wysiwyg-editor-wrapper .ql-container {
+    
+    /* Froala editor container */
+    .wysiwyg-editor-wrapper .fr-box {
       border: 1px solid #d1d5db !important;
-      border-top: none !important;
-      background: white !important;
-      font-family: inherit !important;
+      border-radius: 8px !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
-    /* Editor content area */
-    .wysiwyg-editor-wrapper .ql-editor {
+    
+    /* Froala editor content */
+    .wysiwyg-editor-wrapper .fr-element {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
       font-size: 14px !important;
       line-height: 1.6 !important;
-      min-height: 120px !important;
-      max-height: 300px !important;
-      padding: 16px !important;
       color: #374151 !important;
-      overflow-y: auto !important;
+      padding: 16px !important;
+    }
+    
+    /* Froala toolbar */
+    .wysiwyg-editor-wrapper .fr-toolbar {
+      border-bottom: 1px solid #d1d5db !important;
+      background: #f9fafb !important;
     }
   `);
 
@@ -114,45 +124,34 @@
     }
   }
 
-  function checkQuillAvailability() {
+  function checkFroalaAvailability() {
     return new Promise((resolve) => {
-      const checkQuill = () => {
-        // Check if Quill is available globally
-        if (typeof window.Quill !== 'undefined' && window.Quill) {
+      const checkFroala = () => {
+        // Check if FroalaEditor is available globally
+        if (typeof window.FroalaEditor !== 'undefined' && window.FroalaEditor) {
           try {
-            // Test if we can create a Quill instance
-            const testDiv = document.createElement('div');
-            testDiv.style.display = 'none';
-            document.body.appendChild(testDiv);
-
-            const testQuill = new window.Quill(testDiv, {
-              theme: 'snow'
-            });
-
-            // Clean up test
-            document.body.removeChild(testDiv);
-
-            if (testQuill && typeof testQuill.getSemanticHTML === 'function') {
-              log('Quill 2.x detected and ready');
+            // Test if we can access FroalaEditor methods
+            if (typeof window.FroalaEditor === 'function') {
+              log('Froala Editor detected and ready');
               resolve(true);
               return;
             }
           } catch (error) {
-            logError('Quill test failed:', error);
+            logError('Froala test failed:', error);
           }
         }
 
         initAttempts++;
         if (initAttempts < MAX_INIT_ATTEMPTS) {
-          log(`Quill check attempt ${initAttempts}/${MAX_INIT_ATTEMPTS}...`);
-          setTimeout(checkQuill, 500);
+          log(`Froala check attempt ${initAttempts}/${MAX_INIT_ATTEMPTS}...`);
+          setTimeout(checkFroala, 500);
         } else {
-          log('Max attempts reached, Quill not available');
+          log('Max attempts reached, Froala not available');
           resolve(false);
         }
       };
 
-      checkQuill();
+      checkFroala();
     });
   }
 
@@ -204,9 +203,7 @@
   }
 
   function shouldTargetMetafield(id, name) {
-    const {
-      ids,
-    } = CONFIG.targetMetafields;
+    const { ids } = CONFIG.targetMetafields;
 
     // If targeting specific IDs
     if (ids.length > 0 && ids.includes(id)) {
@@ -218,12 +215,7 @@
 
   function createWYSIWYGEditor(metafieldData) {
     try {
-      const {
-        textarea,
-        metafieldId,
-        metafieldName,
-        row
-      } = metafieldData;
+      const { textarea, metafieldId, metafieldName, row } = metafieldData;
 
       log('Creating WYSIWYG for:', metafieldName, 'ID:', metafieldId);
 
@@ -255,12 +247,12 @@
       editorWrapper.originalContainer = textFieldContainer;
       processedElements.add(textarea);
 
-      // Initialize Quill
-      let quill;
+      // Initialize Froala
+      let froalaEditor;
       try {
-        quill = new window.Quill(editorDiv, CONFIG.editorConfig);
+        froalaEditor = new FroalaEditor(editorDiv, CONFIG.editorConfig);
       } catch (error) {
-        logError('Failed to create Quill instance:', error);
+        logError('Failed to create Froala instance:', error);
         // Restore original element
         textFieldContainer.style.display = '';
         editorWrapper.remove();
@@ -268,8 +260,8 @@
         return null;
       }
 
-      quillInstances.set(editorId, {
-        quill: quill,
+      froalaInstances.set(editorId, {
+        editor: froalaEditor,
         originalTextarea: textarea,
         metafieldName: metafieldName
       });
@@ -281,64 +273,44 @@
       if (initialContent && initialContent.trim()) {
         hasInitialContent = true;
         try {
-          // In Quill 2.0.3, use setContents or clipboard.dangerouslyPasteHTML
-          if (initialContent.includes('<') && initialContent.includes('>')) {
-            quill.clipboard.dangerouslyPasteHTML(initialContent);
-          } else {
-            quill.setText(initialContent);
-          }
+          froalaEditor.html.set(initialContent);
         } catch (e) {
           logError('Error setting initial content:', e);
-          quill.setText(initialContent);
+          froalaEditor.html.set("!CHYBA! Neukládat změny, napsat Štěpánovi.");
         }
       }
 
-      // Focus Quill by default
+      // Focus editor by default
       setTimeout(() => {
-        quill.focus();
-      });
+        froalaEditor.events.focus();
+      }, 100);
 
-      // Simple content synchronization with enhanced event triggering
+      // Content synchronization
       const syncContent = () => {
         try {
-          const content = quill.getSemanticHTML();
-
-          // Check if content is just empty paragraph(s) - don't sync these
+          const content = froalaEditor.html.get();
+          
+          // Check if content is just empty paragraph(s)
           const isEmpty = !content ||
             content.trim() === '<p><br></p>' ||
             content.trim() === '<p></p>' ||
             content.trim() === '' ||
-            quill.getText().trim() === '';
+            froalaEditor.html.get(true).trim() === ''; // Get clean HTML
 
           // Update the original textarea
           const oldValue = textarea.value;
           const newValue = isEmpty ? '' : content;
           textarea.value = newValue;
 
-          // Only trigger events if content actually changed AND it's not just empty formatting
+          // Only trigger events if content actually changed
           if (oldValue !== newValue && (hasInitialContent || !isEmpty)) {
             // Create and dispatch multiple events to ensure Shopify detects the change
             const events = [
-              new Event('input', {
-                bubbles: true,
-                cancelable: true
-              }),
-              new Event('change', {
-                bubbles: true,
-                cancelable: true
-              }),
-              new Event('blur', {
-                bubbles: true,
-                cancelable: true
-              }),
-              new KeyboardEvent('keyup', {
-                bubbles: true,
-                cancelable: true
-              }),
-              new Event('focusout', {
-                bubbles: true,
-                cancelable: true
-              })
+              new Event('input', { bubbles: true, cancelable: true }),
+              new Event('change', { bubbles: true, cancelable: true }),
+              new Event('blur', { bubbles: true, cancelable: true }),
+              new KeyboardEvent('keyup', { bubbles: true, cancelable: true }),
+              new Event('focusout', { bubbles: true, cancelable: true })
             ];
 
             events.forEach(event => {
@@ -379,23 +351,20 @@
         }
       };
 
-      // Set up change listener - sync on every change with debouncing
+      // Set up change listeners with debouncing
       let syncTimeout;
       let userHasInteracted = false;
 
-      quill.on('text-change', (delta, oldDelta, source) => {
-        if (source === 'user') {
-          userHasInteracted = true;
-          // Clear existing timeout
-          clearTimeout(syncTimeout);
-          // Debounce the sync to avoid too many events
-          syncTimeout = setTimeout(syncContent, 300);
-        }
+      // Listen for content change events
+      froalaEditor.events.on('contentChanged', function () {
+        userHasInteracted = true;
+        clearTimeout(syncTimeout);
+        syncTimeout = setTimeout(syncContent, 300);
       });
 
-      // Also sync immediately when editor loses focus
-      quill.on('selection-change', (range, oldRange, source) => {
-        if (!range && oldRange && source === 'user' && userHasInteracted) {
+      // Also sync when editor loses focus
+      froalaEditor.events.on('blur', function () {
+        if (userHasInteracted) {
           clearTimeout(syncTimeout);
           syncContent();
         }
@@ -425,11 +394,11 @@
         return;
       }
 
-      if (!quillReady) {
-        log('Quill not ready yet, checking availability...');
-        quillReady = await checkQuillAvailability();
-        if (!quillReady) {
-          log('Quill failed to load properly');
+      if (!froalaReady) {
+        log('Froala not ready yet, checking availability...');
+        froalaReady = await checkFroalaAvailability();
+        if (!froalaReady) {
+          log('Froala failed to load properly');
           return;
         }
       }
@@ -472,11 +441,9 @@
         let shouldProcess = false;
 
         for (const mutation of mutations) {
-          // Only check childList mutations for efficiency
           if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
             for (const node of mutation.addedNodes) {
               if (node.nodeType === Node.ELEMENT_NODE) {
-                // Check if this node or its descendants contain metafield elements
                 if (node.matches && (
                     node.matches('div._RowWrapper_xxurb_22') ||
                     node.matches('a[href*="/metafields/"]') ||
@@ -507,7 +474,6 @@
       observer.observe(document.body, {
         childList: true,
         subtree: true,
-        // Only observe what we need
         attributes: false,
         attributeOldValue: false,
         characterData: false,
@@ -525,19 +491,19 @@
     try {
       if (!isProductPage()) return;
 
-      log('Initializing Shopify Metafield WYSIWYG Editor...');
+      log('Initializing Shopify Metafield WYSIWYG Editor with Froala...');
       log('Target config:', CONFIG.targetMetafields);
 
-      // Wait for Quill to be ready
-      quillReady = await checkQuillAvailability();
+      // Wait for Froala to be ready
+      froalaReady = await checkFroalaAvailability();
 
-      if (quillReady) {
-        log('Quill is ready, processing metafields...');
+      if (froalaReady) {
+        log('Froala is ready, processing metafields...');
         setTimeout(processMetafields, 500);
         setTimeout(processMetafields, 2000); // Backup processing
         setupObserver();
       } else {
-        log('Failed to initialize: Quill not available');
+        log('Failed to initialize: Froala not available');
       }
     } catch (error) {
       logError('Error in initialize:', error);
@@ -555,15 +521,15 @@
       // Clean up
       processedElements.clear();
       if (observer) observer.disconnect();
-      quillInstances.forEach((instance, id) => {
+      froalaInstances.forEach((instance, id) => {
         try {
-          instance.quill.disable();
+          instance.editor.destroy();
         } catch (e) {
           logError(e);
         }
       });
-      quillInstances.clear();
-      quillReady = false;
+      froalaInstances.clear();
+      froalaReady = false;
       initAttempts = 0;
 
       // Reinitialize
@@ -584,14 +550,14 @@
   window.addEventListener('beforeunload', () => {
     try {
       if (observer) observer.disconnect();
-      quillInstances.forEach((instance) => {
+      froalaInstances.forEach((instance) => {
         try {
-          instance.quill.disable();
+          instance.editor.destroy();
         } catch (e) {
           logError(e);
         }
       });
-      quillInstances.clear();
+      froalaInstances.clear();
     } catch (error) {
       logError('Error during cleanup:', error);
     }
@@ -600,20 +566,16 @@
   // Debug functions
   window.debugWYSIWYG = {
     processMetafields: processMetafields,
-    getInstances: () => quillInstances,
+    getInstances: () => froalaInstances,
     getProcessed: () => processedElements,
-    checkQuill: () => checkQuillAvailability(),
+    checkFroala: () => checkFroalaAvailability(),
     forceSync: () => {
-      quillInstances.forEach((instance, id) => {
+      froalaInstances.forEach((instance, id) => {
         try {
-          const content = instance.quill.getSemanticHTML();
+          const content = instance.editor.html.get();
           instance.originalTextarea.value = content;
-          instance.originalTextarea.dispatchEvent(new Event('input', {
-            bubbles: true
-          }));
-          instance.originalTextarea.dispatchEvent(new Event('change', {
-            bubbles: true
-          }));
+          instance.originalTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+          instance.originalTextarea.dispatchEvent(new Event('change', { bubbles: true }));
           log('Force synced:', instance.metafieldName);
         } catch (e) {
           logError('Error force syncing:', instance.metafieldName, e);
@@ -622,5 +584,5 @@
     }
   };
 
-  log('Shopify Metafield WYSIWYG Editor script loaded successfully');
+  log('Shopify Metafield WYSIWYG Editor with Froala loaded successfully');
 })();
