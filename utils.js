@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils - Froala Edition
 // @namespace    https://econea.cz/
-// @version      1.3.2
+// @version      1.3.3
 // @description  Replaces specified Shopify metafield editors with Froala WYSIWYG editor
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -257,20 +257,19 @@
         editorConfig.htmlSet = initialContent;
       }
 
-      // Initialize Froala
+      // Initialize Froala with proper error handling
       let froalaEditor;
       try {
         froalaEditor = new FroalaEditor(editorDiv, editorConfig);
-
+        
         // Validate that the editor was created properly
         if (!froalaEditor || typeof froalaEditor !== 'object') {
           throw new Error('Froala editor instance is invalid');
         }
         
-        // Check if events object exists
-        if (!froalaEditor.events || typeof froalaEditor.events.on !== 'function') {
-          throw new Error('Froala editor events object is not available');
-        }
+        // Note: Don't check for events here as it might not be available immediately
+        // The events object is created during the editor initialization process
+        
       } catch (error) {
         logError('Failed to create Froala instance:', error);
         // Restore original element
@@ -286,7 +285,7 @@
         metafieldName: metafieldName
       });
 
-      // Content synchronization
+      // Content synchronization function
       const syncContent = () => {
         try {
           // Make sure editor is ready
@@ -363,66 +362,78 @@
       let userHasInteracted = false;
 
       // Wait for editor to be fully initialized before setting content or events
-      try {
-        froalaEditor.events.on('initialized', function () {
-          log('Froala editor initialized for:', metafieldName);
-          
-          // Set initial content if not set during initialization
-          if (hasInitialContent && froalaEditor.html && typeof froalaEditor.html.get === 'function' && !froalaEditor.html.get()) {
-            try {
-              froalaEditor.html.set(initialContent);
-            } catch (e) {
-              logError('Error setting initial content after init:', e);
-              if (froalaEditor.html && typeof froalaEditor.html.set === 'function') {
-                froalaEditor.html.set("!CHYBA! Neukládat změny, napsat Štěpánovi.");
-              }
-            }
+      // Use a more robust approach to wait for editor readiness
+      const setupEditor = () => {
+        try {
+          // Check if events object is now available
+          if (!froalaEditor.events || typeof froalaEditor.events.on !== 'function') {
+            // If events aren't available yet, wait a bit more
+            setTimeout(setupEditor, 100);
+            return;
           }
 
-          // Focus editor by default
-          setTimeout(() => {
-            try {
-              if (froalaEditor.events && typeof froalaEditor.events.focus === 'function') {
-                froalaEditor.events.focus();
+          froalaEditor.events.on('initialized', function () {
+            log('Froala editor initialized for:', metafieldName);
+            
+            // Set initial content if not set during initialization
+            if (hasInitialContent && froalaEditor.html && typeof froalaEditor.html.get === 'function' && !froalaEditor.html.get()) {
+              try {
+                froalaEditor.html.set(initialContent);
+              } catch (e) {
+                logError('Error setting initial content after init:', e);
+                if (froalaEditor.html && typeof froalaEditor.html.set === 'function') {
+                  froalaEditor.html.set("!CHYBA! Neukládat změny, napsat Štěpánovi.");
+                }
               }
-            } catch (e) {
-              logError('Error focusing editor:', e);
             }
-          }, 100);
 
-          // Set up content change listeners after initialization
-          try {
-            froalaEditor.events.on('contentChanged', function () {
-              userHasInteracted = true;
-              clearTimeout(syncTimeout);
-              syncTimeout = setTimeout(syncContent, 300);
-            });
+            // Focus editor by default
+            setTimeout(() => {
+              try {
+                if (froalaEditor.events && typeof froalaEditor.events.focus === 'function') {
+                  froalaEditor.events.focus();
+                }
+              } catch (e) {
+                logError('Error focusing editor:', e);
+              }
+            }, 100);
 
-            // Also sync when editor loses focus
-            froalaEditor.events.on('blur', function () {
-              if (userHasInteracted) {
+            // Set up content change listeners after initialization
+            try {
+              froalaEditor.events.on('contentChanged', function () {
+                userHasInteracted = true;
                 clearTimeout(syncTimeout);
-                syncContent();
-              }
-            });
+                syncTimeout = setTimeout(syncContent, 300);
+              });
 
-            // Only sync initially if there was actual content
-            if (hasInitialContent) {
-              setTimeout(syncContent, 100);
+              // Also sync when editor loses focus
+              froalaEditor.events.on('blur', function () {
+                if (userHasInteracted) {
+                  clearTimeout(syncTimeout);
+                  syncContent();
+                }
+              });
+
+              // Only sync initially if there was actual content
+              if (hasInitialContent) {
+                setTimeout(syncContent, 100);
+              }
+            } catch (e) {
+              logError('Error setting up event listeners:', e);
             }
-          } catch (e) {
-            logError('Error setting up event listeners:', e);
-          }
-        });
-      } catch (error) {
-        logError('Error setting up initialized event:', error);
-        // Clean up if we can't set up events
-        textFieldContainer.style.display = '';
-        editorWrapper.remove();
-        processedElements.delete(textarea);
-        froalaInstances.delete(editorId);
-        return null;
-      }
+          });
+        } catch (error) {
+          logError('Error setting up editor events:', error);
+          // Clean up if we can't set up events
+          textFieldContainer.style.display = '';
+          editorWrapper.remove();
+          processedElements.delete(textarea);
+          froalaInstances.delete(editorId);
+        }
+      };
+
+      // Start the setup process
+      setTimeout(setupEditor, 50);
 
       log('WYSIWYG editor created successfully for:', metafieldName);
       return editorWrapper;
