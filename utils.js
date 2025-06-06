@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils - Froala Edition
 // @namespace    https://econea.cz/
-// @version      1.3.5
+// @version      1.3.6
 // @description  Replaces specified Shopify metafield editors with Froala WYSIWYG editor
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -296,6 +296,7 @@
       // Content synchronization function
       const syncContent = () => {
         try {
+          console.log("syncContent");
           // Make sure editor is ready
           if (!froalaEditor || !froalaEditor.html || typeof froalaEditor.html.get !== 'function') {
             logError('Editor not ready for sync');
@@ -303,6 +304,7 @@
           }
           
           const content = froalaEditor.html.get();
+          console.log(content);
           
           // Check if content is just empty paragraph(s)
           const isEmpty = !content ||
