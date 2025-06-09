@@ -1,17 +1,15 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.7
+// @version      1.3.8
 // @description  Replaces specified Shopify metafield editors with Summernote WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
 // @match        https://admin.shopify.com/store/*/products/*
 // @grant        GM_addStyle
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/summernote/0.8.20/summernote-bs5.min.js
-// @resource     SummernoteCSS https://cdnjs.cloudflare.com/ajax/libs/summernote/0.8.20/summernote-bs5.min.css
-// @resource     BootstrapCSS https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css
+// @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.slim.min.js
+// @require      https://cdn.jsdelivr.net/npm/summernote@0.9.1/dist/summernote-lite.min.js
+// @resource     SummernoteCSS https://cdn.jsdelivr.net/npm/summernote@0.9.1/dist/summernote-lite.min.css
 // @license      MIT
 // ==/UserScript==
 
@@ -27,9 +25,9 @@
     debug: true,
 
     editorConfig: {
-      height: 120,
-      minHeight: 120,
-      maxHeight: 300,
+      minHeight: 300,
+      maxHeight: 600,
+      height: 300,
       placeholder: '',
       toolbar: [
         ['style', ['style']],
@@ -37,15 +35,15 @@
         ['color', ['color', 'backcolor']],
         ['para', ['ul', 'ol', 'paragraph']],
         ['table', ['table']],
-        ['insert', ['link', 'hr']],
-        ['view', ['codeview', 'help']],
-        ['misc', ['undo', 'redo']]
+        ['insert', ['link', 'picture', 'video', 'hr']],
+        ['view', ['fullscreen', 'codeview', 'help']],
+        ['misc', ['undo', 'redo']],
       ],
       styleTags: [
         'p',
         { title: 'Heading 1', tag: 'h1', className: '', value: 'h1' },
         { title: 'Heading 2', tag: 'h2', className: '', value: 'h2' },
-        { title: 'Heading 3', tag: 'h3', className: '', value: 'h3' }
+        { title: 'Heading 3', tag: 'h3', className: '', value: 'h3' },
       ],
       fontSizes: ['8', '9', '10', '11', '12', '14', '16', '18', '20', '22', '24', '36', '48', '64', '82', '150'],
       callbacks: {
@@ -57,9 +55,9 @@
         },
         onBlur: function() {
           // Will be set per instance
-        }
-      }
-    }
+        },
+      },
+    },
   };
 
   let processedElements = new Set();
@@ -70,54 +68,62 @@
   const MAX_INIT_ATTEMPTS = 20;
 
   GM_addStyle(`
-    @import url('https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css');
-    @import url('https://cdnjs.cloudflare.com/ajax/libs/summernote/0.8.20/summernote-bs5.min.css');
-    
+    @import url('https://cdn.jsdelivr.net/npm/summernote@0.9.1/dist/summernote-lite.min.css');
+
     /* Main wrapper styling */
     .wysiwyg-editor-wrapper {
       margin: 0 !important;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
       position: relative !important;
       width: 100% !important;
-      background: white !important;
       border-radius: 8px !important;
-      overflow: hidden !important;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+      overflow: visible !important;
     }
-    
+
     /* Summernote container styling */
     .wysiwyg-editor-wrapper .note-editor {
       border: 1px solid #d1d5db !important;
       border-radius: 8px !important;
       background: white !important;
-      font-family: inherit !important;
     }
-    
+
     /* Summernote toolbar styling */
     .wysiwyg-editor-wrapper .note-toolbar {
       border-bottom: 1px solid #d1d5db !important;
       background: #f9fafb !important;
       padding: 8px 12px !important;
     }
-    
+
     /* Editor content area */
     .wysiwyg-editor-wrapper .note-editing-area .note-editable {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-      font-size: 14px !important;
-      line-height: 1.6 !important;
-      min-height: 120px !important;
-      max-height: 300px !important;
-      padding: 16px !important;
-      color: #374151 !important;
       overflow-y: auto !important;
       border: none !important;
     }
-    
-    /* Hide Bootstrap components that might interfere with Shopify */
-    .wysiwyg-editor-wrapper .modal,
-    .wysiwyg-editor-wrapper .popover,
-    .wysiwyg-editor-wrapper .tooltip {
-      z-index: 10000 !important;
+
+    /* Hide components that might interfere with Shopify Admin UI */
+    .note-modal-backdrop {
+      display: none !important;
+    }
+
+    .note-modal {
+      top: 60px !important;
+    }
+
+    .note-editor.note-frame.fullscreen {
+      top: 60px !important;
+      bottom: 0 !important;
+    }
+
+    .note-editor.note-frame.fullscreen .note-editing-area {
+      height: calc(100% - 60px) !important
+    }
+
+    .note-editor.note-frame.fullscreen .note-editing-area .note-editable {
+      height: 100% !important;
+    }
+
+    .note-editor.note-frame.fullscreen .note-editing-area .note-codable {
+      height: 100% !important;
+      max-height: unset !important;
     }
   `);
 
@@ -137,31 +143,13 @@
     return new Promise((resolve) => {
       const checkSummernote = () => {
         // Check if jQuery and Summernote are available
-        if (typeof window.jQuery !== 'undefined' && window.jQuery && 
-            typeof window.jQuery.fn.summernote !== 'undefined') {
-          try {
-            // Test if we can create a Summernote instance
-            const testDiv = jQuery('<div>').hide().appendTo('body');
-            testDiv.summernote({
-              height: 100,
-              toolbar: []
-            });
-            
-            // Test basic functionality
-            const hasRequiredMethods = testDiv.summernote('code') !== undefined;
-            
-            // Clean up test
-            testDiv.summernote('destroy');
-            testDiv.remove();
-
-            if (hasRequiredMethods) {
-              log('Summernote detected and ready');
-              resolve(true);
-              return;
-            }
-          } catch (error) {
-            logError('Summernote test failed:', error);
-          }
+        if (
+          typeof window.jQuery !== 'undefined' && window.jQuery &&
+          typeof window.jQuery.fn.summernote !== 'undefined'
+         ) {
+          log('Summernote detected and ready');
+          resolve(true);
+          return;
         }
 
         initAttempts++;
@@ -289,10 +277,10 @@
       let $editor;
       try {
         $editor = jQuery(editorDiv);
-        
+
         // Clone the config and set up callbacks for this instance
         const instanceConfig = jQuery.extend(true, {}, CONFIG.editorConfig);
-        
+
         // Set up content synchronization
         let syncTimeout;
         let userHasInteracted = false;
@@ -311,39 +299,12 @@
             // Update the original textarea
             const oldValue = textarea.value;
             const newValue = isEmpty ? '' : content;
-            textarea.value = newValue;
 
             // Only trigger events if content actually changed AND it's not just empty formatting
             if (oldValue !== newValue && (hasInitialContent || !isEmpty)) {
-              // Create and dispatch multiple events to ensure Shopify detects the change
-              const events = [
-                new Event('input', {
-                  bubbles: true,
-                  cancelable: true
-                }),
-                new Event('change', {
-                  bubbles: true,
-                  cancelable: true
-                }),
-                new Event('blur', {
-                  bubbles: true,
-                  cancelable: true
-                }),
-                new KeyboardEvent('keyup', {
-                  bubbles: true,
-                  cancelable: true
-                }),
-                new Event('focusout', {
-                  bubbles: true,
-                  cancelable: true
-                })
-              ];
+              textarea.value = newValue;
 
-              events.forEach(event => {
-                textarea.dispatchEvent(event);
-              });
-
-              // Also try to trigger React/Vue change detection
+              // Also try to trigger Shopify React change detection
               const reactProps = Object.keys(textarea).find(key => key.startsWith('__react'));
               if (reactProps) {
                 const reactInternalInstance = textarea[reactProps];
@@ -359,16 +320,10 @@
                 }
               }
 
-              // Force a property descriptor update
-              try {
-                const descriptor = Object.getOwnPropertyDescriptor(textarea, 'value') ||
-                  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
-                if (descriptor && descriptor.set) {
-                  descriptor.set.call(textarea, newValue);
-                }
-              } catch (e) {
-                logError(e);
-              }
+              console.dir({
+                before: oldValue,
+                after: newValue,
+              }, {depth:3});
 
               log('Content synced for:', metafieldName, 'Length:', newValue.length);
             }
@@ -389,7 +344,7 @@
               $editor.summernote('code', initialContent);
             }
           }
-          
+
           // Focus editor
           setTimeout(() => {
             $editor.summernote('focus');
