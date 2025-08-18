@@ -2,14 +2,13 @@
 // @name         Econea Utils
 // @namespace    https://econea.cz/
 // @version      1.3.8
-// @description  Replaces specified Shopify metafield editors with Summernote WYSIWYG editor etc.
+// @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
 // @match        https://admin.shopify.com/store/*/products/*
 // @grant        GM_addStyle
-// @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.slim.min.js
-// @require      https://cdn.jsdelivr.net/npm/summernote@0.9.1/dist/summernote-lite.min.js
-// @resource     SummernoteCSS https://cdn.jsdelivr.net/npm/summernote@0.9.1/dist/summernote-lite.min.css
+// @require      https://cdn.jsdelivr.net/npm/suneditor@2.46.2/dist/suneditor.min.js
+// @resource     SuneditorCSS https://cdn.jsdelivr.net/npm/suneditor@2.46.2/dist/css/suneditor.min.css
 // @license      MIT
 // ==/UserScript==
 
@@ -25,50 +24,45 @@
     debug: true,
 
     editorConfig: {
-      minHeight: 300,
-      maxHeight: 600,
-      height: 300,
+      minHeight: '300px',
+      maxHeight: '600px',
+      height: '300px',
       placeholder: '',
-      toolbar: [
-        ['style', ['style']],
-        ['font', ['bold', 'italic', 'underline', 'strikethrough']],
-        ['color', ['color', 'backcolor']],
-        ['para', ['ul', 'ol', 'paragraph']],
-        ['table', ['table']],
-        ['insert', ['link', 'picture', 'video', 'hr']],
-        ['view', ['fullscreen', 'codeview', 'help']],
-        ['misc', ['undo', 'redo']],
+      buttonList: [
+        ['undo', 'redo'],
+        ['font', 'fontSize', 'formatBlock'],
+        ['bold', 'italic', 'underline', 'strike'],
+        ['fontColor', 'hiliteColor'],
+        ['removeFormat'],
+        ['outdent', 'indent'],
+        ['align', 'horizontalRule', 'list', 'lineHeight'],
+        ['table', 'link', 'image', 'video'],
+        ['fullScreen', 'showBlocks', 'codeView'],
+        ['preview', 'print']
       ],
-      styleTags: [
+      formats: [
         'p',
-        { title: 'Heading 1', tag: 'h1', className: '', value: 'h1' },
-        { title: 'Heading 2', tag: 'h2', className: '', value: 'h2' },
-        { title: 'Heading 3', tag: 'h3', className: '', value: 'h3' },
+        { tag: 'h1', name: 'Heading 1', class: '' },
+        { tag: 'h2', name: 'Heading 2', class: '' },
+        { tag: 'h3', name: 'Heading 3', class: '' },
       ],
-      fontSizes: ['8', '9', '10', '11', '12', '14', '16', '18', '20', '22', '24', '36', '48', '64', '82', '150'],
-      callbacks: {
-        onInit: function() {
-          // Will be set per instance
-        },
-        onChange: function(contents, $editable) {
-          // Will be set per instance
-        },
-        onBlur: function() {
-          // Will be set per instance
-        },
-      },
+      font: [
+        'Arial', 'Comic Sans MS', 'Courier New', 'Impact',
+        'Georgia', 'tahoma', 'Trebuchet MS', 'Verdana'
+      ],
+      fontSize: [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 36, 48, 64, 82, 150],
     },
   };
 
   let processedElements = new Set();
   let observer;
-  let summernoteInstances = new Map();
-  let summernoteReady = false;
+  let suneditorInstances = new Map();
+  let suneditorReady = false;
   let initAttempts = 0;
   const MAX_INIT_ATTEMPTS = 20;
 
   GM_addStyle(`
-    @import url('https://cdn.jsdelivr.net/npm/summernote@0.9.1/dist/summernote-lite.min.css');
+    @import url('https://cdn.jsdelivr.net/npm/suneditor@2.46.2/dist/css/suneditor.min.css');
 
     /* Main wrapper styling */
     .wysiwyg-editor-wrapper {
@@ -79,49 +73,49 @@
       overflow: visible !important;
     }
 
-    /* Summernote container styling */
-    .wysiwyg-editor-wrapper .note-editor {
+    /* Suneditor container styling */
+    .wysiwyg-editor-wrapper .sun-editor {
       border: 1px solid #d1d5db !important;
       border-radius: 8px !important;
       background: white !important;
     }
 
-    /* Summernote toolbar styling */
-    .wysiwyg-editor-wrapper .note-toolbar {
+    /* Suneditor toolbar styling */
+    .wysiwyg-editor-wrapper .se-toolbar {
       border-bottom: 1px solid #d1d5db !important;
       background: #f9fafb !important;
       padding: 8px 12px !important;
     }
 
     /* Editor content area */
-    .wysiwyg-editor-wrapper .note-editing-area .note-editable {
+    .wysiwyg-editor-wrapper .se-wrapper-inner .se-wrapper-wysiwyg {
       overflow-y: auto !important;
       border: none !important;
     }
 
     /* Hide components that might interfere with Shopify Admin UI */
-    .note-modal-backdrop {
+    .se-modal-background {
       display: none !important;
     }
 
-    .note-modal {
+    .se-modal {
       top: 60px !important;
     }
 
-    .note-editor.note-frame.fullscreen {
+    .sun-editor-container.se-fullscreen {
       top: 60px !important;
       bottom: 0 !important;
     }
 
-    .note-editor.note-frame.fullscreen .note-editing-area {
+    .sun-editor-container.se-fullscreen .se-wrapper {
       height: calc(100% - 60px) !important
     }
 
-    .note-editor.note-frame.fullscreen .note-editing-area .note-editable {
+    .sun-editor-container.se-fullscreen .se-wrapper-inner .se-wrapper-wysiwyg {
       height: 100% !important;
     }
 
-    .note-editor.note-frame.fullscreen .note-editing-area .note-codable {
+    .sun-editor-container.se-fullscreen .se-wrapper-inner .se-wrapper-code {
       height: 100% !important;
       max-height: unset !important;
     }
@@ -139,30 +133,27 @@
     }
   }
 
-  function checkSummernoteAvailability() {
+  function checkSuneditorAvailability() {
     return new Promise((resolve) => {
-      const checkSummernote = () => {
-        // Check if jQuery and Summernote are available
-        if (
-          typeof window.jQuery !== 'undefined' && window.jQuery &&
-          typeof window.jQuery.fn.summernote !== 'undefined'
-         ) {
-          log('Summernote detected and ready');
+      const checkSuneditor = () => {
+        // Check if Suneditor is available
+        if (typeof window.SUNEDITOR !== 'undefined' && window.SUNEDITOR) {
+          log('Suneditor detected and ready');
           resolve(true);
           return;
         }
 
         initAttempts++;
         if (initAttempts < MAX_INIT_ATTEMPTS) {
-          log(`Summernote check attempt ${initAttempts}/${MAX_INIT_ATTEMPTS}...`);
-          setTimeout(checkSummernote, 500);
+          log(`Suneditor check attempt ${initAttempts}/${MAX_INIT_ATTEMPTS}...`);
+          setTimeout(checkSuneditor, 500);
         } else {
-          log('Max attempts reached, Summernote not available');
+          log('Max attempts reached, Suneditor not available');
           resolve(false);
         }
       };
 
-      checkSummernote();
+      checkSuneditor();
     });
   }
 
@@ -273,13 +264,11 @@
         hasInitialContent = true;
       }
 
-      // Initialize Summernote with jQuery
-      let $editor;
+      // Initialize Suneditor
+      let editor;
       try {
-        $editor = jQuery(editorDiv);
-
         // Clone the config and set up callbacks for this instance
-        const instanceConfig = jQuery.extend(true, {}, CONFIG.editorConfig);
+        const instanceConfig = Object.assign({}, CONFIG.editorConfig);
 
         // Set up content synchronization
         let syncTimeout;
@@ -287,14 +276,14 @@
 
         const syncContent = () => {
           try {
-            const content = $editor.summernote('code');
+            const content = editor.getContents();
 
             // Check if content is just empty paragraph(s) - don't sync these
             const isEmpty = !content ||
               content.trim() === '<p><br></p>' ||
               content.trim() === '<p></p>' ||
               content.trim() === '' ||
-              $editor.summernote('isEmpty');
+              editor.util.onlyZeroWidthSpace(content);
 
             // Update the original textarea
             const oldValue = textarea.value;
@@ -333,25 +322,7 @@
         };
 
         // Set up callbacks
-        instanceConfig.callbacks.onInit = function() {
-          // Set initial content after initialization
-          if (hasInitialContent) {
-            try {
-              $editor.summernote('code', initialContent);
-              setTimeout(syncContent, 100);
-            } catch (e) {
-              logError('Error setting initial content:', e);
-              $editor.summernote('code', initialContent);
-            }
-          }
-
-          // Focus editor
-          setTimeout(() => {
-            $editor.summernote('focus');
-          }, 100);
-        };
-
-        instanceConfig.callbacks.onChange = function(contents, $editable) {
+        instanceConfig.callBackSave = function(contents) {
           userHasInteracted = true;
           // Clear existing timeout
           clearTimeout(syncTimeout);
@@ -359,18 +330,42 @@
           syncTimeout = setTimeout(syncContent, 300);
         };
 
-        instanceConfig.callbacks.onBlur = function() {
+        instanceConfig.onBlur = function(e, core) {
           if (userHasInteracted) {
             clearTimeout(syncTimeout);
             syncContent();
           }
         };
 
-        // Initialize Summernote
-        $editor.summernote(instanceConfig);
+        instanceConfig.onChange = function(contents, core) {
+          userHasInteracted = true;
+          // Clear existing timeout
+          clearTimeout(syncTimeout);
+          // Debounce the sync to avoid too many events
+          syncTimeout = setTimeout(syncContent, 300);
+        };
+
+        // Initialize Suneditor
+        editor = SUNEDITOR.create(editorDiv, instanceConfig);
+
+        // Set initial content after initialization
+        if (hasInitialContent) {
+          try {
+            editor.setContents(initialContent);
+            setTimeout(syncContent, 100);
+          } catch (e) {
+            logError('Error setting initial content:', e);
+            editor.setContents(initialContent);
+          }
+        }
+
+        // Focus editor
+        setTimeout(() => {
+          editor.focus();
+        }, 100);
 
       } catch (error) {
-        logError('Failed to create Summernote instance:', error);
+        logError('Failed to create Suneditor instance:', error);
         // Restore original element
         textFieldContainer.style.display = '';
         editorWrapper.remove();
@@ -378,8 +373,8 @@
         return null;
       }
 
-      summernoteInstances.set(editorId, {
-        $editor: $editor,
+      suneditorInstances.set(editorId, {
+        editor: editor,
         originalTextarea: textarea,
         metafieldName: metafieldName
       });
@@ -403,11 +398,11 @@
         return;
       }
 
-      if (!summernoteReady) {
-        log('Summernote not ready yet, checking availability...');
-        summernoteReady = await checkSummernoteAvailability();
-        if (!summernoteReady) {
-          log('Summernote failed to load properly');
+      if (!suneditorReady) {
+        log('Suneditor not ready yet, checking availability...');
+        suneditorReady = await checkSuneditorAvailability();
+        if (!suneditorReady) {
+          log('Suneditor failed to load properly');
           return;
         }
       }
@@ -506,16 +501,16 @@
       log('Initializing Shopify Metafield WYSIWYG Editor...');
       log('Target config:', CONFIG.targetMetafields);
 
-      // Wait for Summernote to be ready
-      summernoteReady = await checkSummernoteAvailability();
+      // Wait for Suneditor to be ready
+      suneditorReady = await checkSuneditorAvailability();
 
-      if (summernoteReady) {
-        log('Summernote is ready, processing metafields...');
+      if (suneditorReady) {
+        log('Suneditor is ready, processing metafields...');
         setTimeout(processMetafields, 500);
         setTimeout(processMetafields, 2000); // Backup processing
         setupObserver();
       } else {
-        log('Failed to initialize: Summernote not available');
+        log('Failed to initialize: Suneditor not available');
       }
     } catch (error) {
       logError('Error in initialize:', error);
@@ -533,15 +528,15 @@
       // Clean up
       processedElements.clear();
       if (observer) observer.disconnect();
-      summernoteInstances.forEach((instance, id) => {
+      suneditorInstances.forEach((instance, id) => {
         try {
-          instance.$editor.summernote('destroy');
+          instance.editor.destroy();
         } catch (e) {
           logError(e);
         }
       });
-      summernoteInstances.clear();
-      summernoteReady = false;
+      suneditorInstances.clear();
+      suneditorReady = false;
       initAttempts = 0;
 
       // Reinitialize
@@ -562,14 +557,14 @@
   window.addEventListener('beforeunload', () => {
     try {
       if (observer) observer.disconnect();
-      summernoteInstances.forEach((instance) => {
+      suneditorInstances.forEach((instance) => {
         try {
-          instance.$editor.summernote('destroy');
+          instance.editor.destroy();
         } catch (e) {
           logError(e);
         }
       });
-      summernoteInstances.clear();
+      suneditorInstances.clear();
     } catch (error) {
       logError('Error during cleanup:', error);
     }
@@ -578,13 +573,13 @@
   // Debug functions
   window.debugWYSIWYG = {
     processMetafields: processMetafields,
-    getInstances: () => summernoteInstances,
+    getInstances: () => suneditorInstances,
     getProcessed: () => processedElements,
-    checkSummernote: () => checkSummernoteAvailability(),
+    checkSuneditor: () => checkSuneditorAvailability(),
     forceSync: () => {
-      summernoteInstances.forEach((instance, id) => {
+      suneditorInstances.forEach((instance, id) => {
         try {
-          const content = instance.$editor.summernote('code');
+          const content = instance.editor.getContents();
           instance.originalTextarea.value = content;
           instance.originalTextarea.dispatchEvent(new Event('input', {
             bubbles: true
