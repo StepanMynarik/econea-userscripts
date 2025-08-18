@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.13
+// @version      1.3.14
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -286,18 +286,21 @@
         };
 
         instanceConfig.onInput = function(contents, core) {
+          console.log("onInput");
           userHasInteracted = true;
           clearTimeout(syncTimeout);
           syncTimeout = setTimeout(syncContent, 300);
         };
         
         instanceConfig.onChange = function(contents, core) {
+          console.log("onChange");
           userHasInteracted = true;
           clearTimeout(syncTimeout);
           syncTimeout = setTimeout(syncContent, 300);
         };
         
         instanceConfig.onBlur = function(e, core) {
+          console.log("onBlur");
           if (userHasInteracted) {
             clearTimeout(syncTimeout);
             syncContent();
@@ -310,11 +313,8 @@
         // Set initial content after initialization
         if (hasInitialContent) {
           try {
-            // Disable events temporarily
-            userHasInteracted = false;
             editor.setContents(initialContent);
-            // Don't sync the initial content automatically
-            setTimeout(syncContent, 100);
+            userHasInteracted = false;
           } catch (e) {
             logError('Error setting initial content:', e);
           }
