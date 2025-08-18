@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.17
+// @version      1.3.18
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -182,12 +182,6 @@
       // Create Shadow DOM for style isolation
       const shadowRoot = editorWrapper.attachShadow({ mode: 'open' });
       
-      // Add Suneditor CSS to Shadow DOM with preload
-      const suneditorCSS = document.createElement('link');
-      suneditorCSS.rel = 'stylesheet';
-      suneditorCSS.href = 'https://cdn.jsdelivr.net/npm/suneditor@2.47.6/dist/css/suneditor.min.css';
-      shadowRoot.appendChild(suneditorCSS);
-      
       // Add custom styles to Shadow DOM
       const customStyles = document.createElement('style');
       customStyles.textContent = `
@@ -202,7 +196,13 @@
           padding: 8px 12px !important;
         }
       `;
-      shadowRoot.appendChild(customStyles);
+      // place at the top of the shadow root
+      shadowRoot.insertBefore(customStyles, shadowRoot.firstChild);
+      
+      const styleEl = document.createElement('style');
+      styleEl.textContent = GM_getResourceText('SuneditorCSS');
+      // place at the top of the shadow root
+      shadowRoot.insertBefore(styleEl, shadowRoot.firstChild);
       
       // Create editor div inside shadow DOM
       const editorId = 'wysiwyg-' + metafieldId + '-' + Date.now();
