@@ -27,6 +27,7 @@
       maxHeight: '600px',
       height: '300px',
       placeholder: '',
+      historyStackDelayTime: 400,
       buttonList: [
         ['undo', 'redo'],
         ['font', 'fontSize', 'formatBlock'],
@@ -156,7 +157,7 @@
     return false;
   }
 
-  function createWYSIWYGEditor(metafieldData) {
+  async function createWYSIWYGEditor(metafieldData) {
     try {
       const {
         textarea,
@@ -182,11 +183,18 @@
       // Create Shadow DOM for style isolation
       const shadowRoot = editorWrapper.attachShadow({ mode: 'open' });
       
-      // Add Suneditor CSS to Shadow DOM
+      // Add Suneditor CSS to Shadow DOM with preload
       const suneditorCSS = document.createElement('link');
       suneditorCSS.rel = 'stylesheet';
       suneditorCSS.href = 'https://cdn.jsdelivr.net/npm/suneditor@2.46.2/dist/css/suneditor.min.css';
       shadowRoot.appendChild(suneditorCSS);
+      
+      // Wait for CSS to load before creating editor
+      await new Promise((resolve) => {
+        suneditorCSS.onload = resolve;
+        suneditorCSS.onerror = resolve; // Continue even if CSS fails to load
+        setTimeout(resolve, 1000); // Fallback timeout
+      });
       
       // Add custom styles to Shadow DOM
       const customStyles = document.createElement('style');
@@ -291,6 +299,12 @@
           syncTimeout = setTimeout(syncContent, 300);
         };
         
+        instanceConfig.onChange = function(contents, core) {
+          userHasInteracted = true;
+          clearTimeout(syncTimeout);
+          syncTimeout = setTimeout(syncContent, 300);
+        };
+        
         instanceConfig.onBlur = function(e, core) {
           if (userHasInteracted) {
             clearTimeout(syncTimeout);
@@ -304,11 +318,13 @@
         // Set initial content after initialization
         if (hasInitialContent) {
           try {
+            // Disable events temporarily
+            userHasInteracted = false;
             editor.setContents(initialContent);
+            // Don't sync the initial content automatically
             setTimeout(syncContent, 100);
           } catch (e) {
             logError('Error setting initial content:', e);
-            editor.setContents(initialContent);
           }
         }
 
@@ -364,16 +380,16 @@
       const metafieldElements = findMetafieldElements();
       let processedCount = 0;
 
-      metafieldElements.forEach(metafieldData => {
+      for (const metafieldData of metafieldElements) {
         try {
-          const result = createWYSIWYGEditor(metafieldData);
+          const result = await createWYSIWYGEditor(metafieldData);
           if (result) {
             processedCount++;
           }
         } catch (error) {
           logError('Failed to create editor for metafield:', error);
         }
-      });
+      }
 
       log(`Successfully processed ${processedCount} metafield(s)`);
     } catch (error) {
