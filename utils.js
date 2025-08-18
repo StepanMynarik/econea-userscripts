@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.16
+// @version      1.3.17
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -315,7 +315,7 @@
 
         // Focus editor
         setTimeout(() => {
-          editor.focus();
+          editor.core.focus();
         }, 100);
 
       } catch (error) {
