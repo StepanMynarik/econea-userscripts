@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.11
+// @version      1.3.12
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -193,7 +193,7 @@
       await new Promise((resolve) => {
         suneditorCSS.onload = resolve;
         suneditorCSS.onerror = resolve; // Continue even if CSS fails to load
-        setTimeout(resolve, 1000); // Fallback timeout
+        setTimeout(resolve, 10000); // Fallback timeout
       });
       
       // Add custom styles to Shadow DOM
