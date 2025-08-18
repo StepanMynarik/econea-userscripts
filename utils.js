@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.18
+// @version      1.3.19
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
 // @match        https://admin.shopify.com/store/*/products/*
 // @require      https://cdn.jsdelivr.net/npm/suneditor@2.47.6/dist/suneditor.min.js
 // @resource     SuneditorCSS https://cdn.jsdelivr.net/npm/suneditor@2.47.6/dist/css/suneditor.min.css
+// @grant        GM_getResourceText
 // @license      MIT
 // ==/UserScript==
 
