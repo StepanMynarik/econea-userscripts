@@ -6,7 +6,6 @@
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
 // @match        https://admin.shopify.com/store/*/products/*
-// @grant        GM_addStyle
 // @require      https://cdn.jsdelivr.net/npm/suneditor@2.46.2/dist/suneditor.min.js
 // @resource     SuneditorCSS https://cdn.jsdelivr.net/npm/suneditor@2.46.2/dist/css/suneditor.min.css
 // @license      MIT
@@ -60,66 +59,6 @@
   let suneditorReady = false;
   let initAttempts = 0;
   const MAX_INIT_ATTEMPTS = 20;
-
-  GM_addStyle(`
-    @import url('https://cdn.jsdelivr.net/npm/suneditor@2.46.2/dist/css/suneditor.min.css');
-
-    /* Main wrapper styling */
-    .wysiwyg-editor-wrapper {
-      margin: 0 !important;
-      position: relative !important;
-      width: 100% !important;
-      border-radius: 8px !important;
-      overflow: visible !important;
-    }
-
-    /* Suneditor container styling */
-    .wysiwyg-editor-wrapper .sun-editor {
-      border: 1px solid #d1d5db !important;
-      border-radius: 8px !important;
-      background: white !important;
-    }
-
-    /* Suneditor toolbar styling */
-    .wysiwyg-editor-wrapper .se-toolbar {
-      border-bottom: 1px solid #d1d5db !important;
-      background: #f9fafb !important;
-      padding: 8px 12px !important;
-    }
-
-    /* Editor content area */
-    .wysiwyg-editor-wrapper .se-wrapper-inner .se-wrapper-wysiwyg {
-      overflow-y: auto !important;
-      border: none !important;
-    }
-
-    /* Hide components that might interfere with Shopify Admin UI */
-    .se-modal-background {
-      display: none !important;
-    }
-
-    .se-modal {
-      top: 60px !important;
-    }
-
-    .sun-editor-container.se-fullscreen {
-      top: 60px !important;
-      bottom: 0 !important;
-    }
-
-    .sun-editor-container.se-fullscreen .se-wrapper {
-      height: calc(100% - 60px) !important
-    }
-
-    .sun-editor-container.se-fullscreen .se-wrapper-inner .se-wrapper-wysiwyg {
-      height: 100% !important;
-    }
-
-    .sun-editor-container.se-fullscreen .se-wrapper-inner .se-wrapper-code {
-      height: 100% !important;
-      max-height: unset !important;
-    }
-  `);
 
   function log(...args) {
     if (CONFIG.debug) {
@@ -235,17 +174,42 @@
         return null;
       }
 
-      // Create wrapper
+      // Create wrapper with Shadow DOM
       const editorWrapper = document.createElement('div');
       editorWrapper.className = 'wysiwyg-editor-wrapper';
       editorWrapper.style.position = 'relative';
-
-      // Create editor div
+      
+      // Create Shadow DOM for style isolation
+      const shadowRoot = editorWrapper.attachShadow({ mode: 'open' });
+      
+      // Add Suneditor CSS to Shadow DOM
+      const suneditorCSS = document.createElement('link');
+      suneditorCSS.rel = 'stylesheet';
+      suneditorCSS.href = 'https://cdn.jsdelivr.net/npm/suneditor@2.46.2/dist/css/suneditor.min.css';
+      shadowRoot.appendChild(suneditorCSS);
+      
+      // Add custom styles to Shadow DOM
+      const customStyles = document.createElement('style');
+      customStyles.textContent = `
+        .sun-editor {
+          border: 1px solid #d1d5db !important;
+          border-radius: 8px !important;
+          background: white !important;
+        }
+        .se-toolbar {
+          border-bottom: 1px solid #d1d5db !important;
+          background: #f9fafb !important;
+          padding: 8px 12px !important;
+        }
+      `;
+      shadowRoot.appendChild(customStyles);
+      
+      // Create editor div inside shadow DOM
       const editorId = 'wysiwyg-' + metafieldId + '-' + Date.now();
       const editorDiv = document.createElement('div');
       editorDiv.id = editorId;
-
-      editorWrapper.appendChild(editorDiv);
+      
+      shadowRoot.appendChild(editorDiv);
 
       // Replace the TextField but keep the original hidden
       textFieldContainer.parentNode.insertBefore(editorWrapper, textFieldContainer);
@@ -321,28 +285,17 @@
           }
         };
 
-        // Set up callbacks
-        instanceConfig.callBackSave = function(contents) {
+        instanceConfig.onInput = function(contents, core) {
           userHasInteracted = true;
-          // Clear existing timeout
           clearTimeout(syncTimeout);
-          // Debounce the sync to avoid too many events
           syncTimeout = setTimeout(syncContent, 300);
         };
-
+        
         instanceConfig.onBlur = function(e, core) {
           if (userHasInteracted) {
             clearTimeout(syncTimeout);
             syncContent();
           }
-        };
-
-        instanceConfig.onChange = function(contents, core) {
-          userHasInteracted = true;
-          // Clear existing timeout
-          clearTimeout(syncTimeout);
-          // Debounce the sync to avoid too many events
-          syncTimeout = setTimeout(syncContent, 300);
         };
 
         // Initialize Suneditor
