@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.12
+// @version      1.3.13
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -27,7 +27,6 @@
       maxHeight: '600px',
       height: '300px',
       placeholder: '',
-      historyStackDelayTime: 400,
       buttonList: [
         ['undo', 'redo'],
         ['font', 'fontSize', 'formatBlock'],
@@ -157,7 +156,7 @@
     return false;
   }
 
-  async function createWYSIWYGEditor(metafieldData) {
+  function createWYSIWYGEditor(metafieldData) {
     try {
       const {
         textarea,
@@ -188,13 +187,6 @@
       suneditorCSS.rel = 'stylesheet';
       suneditorCSS.href = 'https://cdn.jsdelivr.net/npm/suneditor@2.46.2/dist/css/suneditor.min.css';
       shadowRoot.appendChild(suneditorCSS);
-      
-      // Wait for CSS to load before creating editor
-      await new Promise((resolve) => {
-        suneditorCSS.onload = resolve;
-        suneditorCSS.onerror = resolve; // Continue even if CSS fails to load
-        setTimeout(resolve, 10000); // Fallback timeout
-      });
       
       // Add custom styles to Shadow DOM
       const customStyles = document.createElement('style');
@@ -382,7 +374,7 @@
 
       for (const metafieldData of metafieldElements) {
         try {
-          const result = await createWYSIWYGEditor(metafieldData);
+          const result = createWYSIWYGEditor(metafieldData);
           if (result) {
             processedCount++;
           }
