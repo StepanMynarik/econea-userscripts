@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.19
+// @version      1.3.20
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -290,14 +290,14 @@
         editor = SUNEDITOR.create(editorDiv, instanceConfig);
 
         editor.onChange = (contents, core) => {
-          console.log("onChange");
+          log("onChange");
           userHasInteracted = true;
           clearTimeout(syncTimeout);
           syncTimeout = setTimeout(syncContent, 300);
         };
         
         editor.onBlur = (e, core) => {
-          console.log("onBlur");
+          log("onBlur");
           if (userHasInteracted) {
             clearTimeout(syncTimeout);
             syncContent();
@@ -315,9 +315,9 @@
         }
 
         // Focus editor
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           editor.core.focus();
-        }, 100);
+        });
 
       } catch (error) {
         logError('Failed to create Suneditor instance:', error);
@@ -386,7 +386,7 @@
   let processTimeout;
   function debouncedProcess() {
     clearTimeout(processTimeout);
-    processTimeout = setTimeout(processMetafields, 200);
+    processTimeout = setTimeout(processMetafields, 50);
   }
 
   // Setup observer for dynamic content
@@ -461,8 +461,8 @@
 
       if (suneditorReady) {
         log('Suneditor is ready, processing metafields...');
-        setTimeout(processMetafields, 500);
-        setTimeout(processMetafields, 2000); // Backup processing
+        setTimeout(processMetafields, 30);
+        setTimeout(processMetafields, 350); // Backup processing
         setupObserver();
       } else {
         log('Failed to initialize: Suneditor not available');
