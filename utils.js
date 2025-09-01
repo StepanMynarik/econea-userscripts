@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.20
+// @version      1.3.21
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
 // @match        https://admin.shopify.com/store/*/products/*
-// @require      https://cdn.jsdelivr.net/npm/suneditor@2.47.6/dist/suneditor.min.js
-// @resource     SuneditorCSS https://cdn.jsdelivr.net/npm/suneditor@2.47.6/dist/css/suneditor.min.css
+// @require      https://cdn.jsdelivr.net/npm/suneditor@2.47.7/dist/suneditor.min.js
+// @resource     SuneditorCSS https://cdn.jsdelivr.net/npm/suneditor@2.47.7/dist/css/suneditor.min.css
 // @grant        GM_getResourceText
 // @license      MIT
 // ==/UserScript==
@@ -29,28 +29,27 @@
       height: '300px',
       placeholder: '',
       buttonList: [
-        ['undo', 'redo'],
-        ['font', 'fontSize', 'formatBlock'],
-        ['bold', 'italic', 'underline', 'strike'],
-        ['fontColor', 'hiliteColor'],
-        ['removeFormat'],
-        ['outdent', 'indent'],
-        ['align', 'horizontalRule', 'list', 'lineHeight'],
-        ['table', 'link', 'image', 'video'],
+        ['formatBlock'],                       // Paragraph / heading dropdown
+        ['bold', 'underline', 'italic'],       // Basic text styles
+        ['fontColor', 'hiliteColor'],          // Text & highlight color
+        ['align', 'list'],                     // Alignment + bulleted/numbered list
+        ['link', 'image', 'video', 'table'],   // Media & table insertion
+        ['removeFormat'],                      // Clear formatting
+        ['codeView'],                           // Source code view
         ['fullScreen', 'showBlocks', 'codeView'],
-        ['preview', 'print']
+        ['preview', 'print'],
       ],
       formats: [
-        'p',
-        { tag: 'h1', name: 'Heading 1', class: '' },
-        { tag: 'h2', name: 'Heading 2', class: '' },
-        { tag: 'h3', name: 'Heading 3', class: '' },
+        { tag: 'p', name: 'Paragraph' },
+        { tag: 'h1', name: 'Heading 1' },
+        { tag: 'h2', name: 'Heading 2' },
+        { tag: 'h3', name: 'Heading 3' },
+        { tag: 'h4', name: 'Heading 4' },
+        { tag: 'h5', name: 'Heading 5' },
+        { tag: 'h6', name: 'Heading 6' },
+        { tag: 'blockquote', name: 'Blockquote' },
       ],
-      font: [
-        'Arial', 'Comic Sans MS', 'Courier New', 'Impact',
-        'Georgia', 'tahoma', 'Trebuchet MS', 'Verdana'
-      ],
-      fontSize: [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 36, 48, 64, 82, 150],
+      font: null,
     },
   };
 
