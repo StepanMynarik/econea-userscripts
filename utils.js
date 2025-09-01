@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.21
+// @version      1.3.22
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -29,13 +29,12 @@
       height: '300px',
       placeholder: '',
       buttonList: [
-        ['formatBlock'],                       // Paragraph / heading dropdown
-        ['bold', 'underline', 'italic'],       // Basic text styles
-        ['fontColor', 'hiliteColor'],          // Text & highlight color
-        ['align', 'list'],                     // Alignment + bulleted/numbered list
-        ['link', 'image', 'video', 'table'],   // Media & table insertion
-        ['removeFormat'],                      // Clear formatting
-        ['codeView'],                           // Source code view
+        ['formatBlock'],
+        ['bold', 'italic', 'underline', 'fontColor'],
+        ['align'],
+        ['link', 'image', 'video', 'table'],
+        ['list', 'indent'],
+        ['removeFormat'],
         ['fullScreen', 'showBlocks', 'codeView'],
         ['preview', 'print'],
       ],
