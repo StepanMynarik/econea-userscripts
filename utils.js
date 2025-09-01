@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.23
+// @version      1.3.24
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -193,6 +193,11 @@
           border-bottom: 1px solid #d1d5db !important;
           background: #f9fafb !important;
           padding: 8px 12px !important;
+        }
+
+        .sun-editor.sun-editor-fullscreen {
+          top: 60px !important; /* Account for Shopify top bar */
+          height: calc(100% - 60px) !important;
         }
       `;
       // place at the top of the shadow root
