@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.24
+// @version      1.3.25
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -49,6 +49,7 @@
         { tag: 'blockquote', name: 'Blockquote' },
       ],
       font: null,
+      fullScreenOffset: "60",
     },
   };
 
