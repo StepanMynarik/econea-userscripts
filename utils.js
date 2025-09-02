@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.28
+// @version      1.3.29
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -17,7 +17,10 @@
 
   const CONFIG = {
     targetMetafields: {
-      ids: ['256299762003'],
+      ids: [
+        '256299762003',
+        '171702452563',
+      ],
     },
 
     // Enable debug logging
