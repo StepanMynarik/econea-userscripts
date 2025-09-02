@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.32
+// @version      1.3.33
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -55,7 +55,6 @@
       font: null,
       fullScreenOffset: "60",
       popupDisplay: "local",
-      lang: "cs",
     },
   };
 
@@ -292,6 +291,7 @@
         };
 
         // Initialize Suneditor
+        instanceConfig.lang = SUNEDITOR_LANG.cs;
         editor = SUNEDITOR.create(editorDiv, instanceConfig);
 
         editor.onChange = (contents, core) => {
