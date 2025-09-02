@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.33
+// @version      1.3.34
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/products/*
@@ -81,8 +81,19 @@
     return new Promise((resolve) => {
       const checkSuneditor = () => {
         // Check if Suneditor is available
+        let editorReady = false;
+        let editorLangReady = false;
         if (typeof window.SUNEDITOR !== 'undefined' && window.SUNEDITOR) {
           log('Suneditor detected and ready');
+          editorReady = true;
+        }
+
+        if (typeof window.SUNEDITOR_LANG !== 'undefined' && window.SUNEDITOR_LANG) {
+          log('Suneditor lang detected and ready');
+          editorLangReady = true;
+        }
+
+        if (editorReady && editorLangReady) {
           resolve(true);
           return;
         }
