@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.36
+// @version      1.3.37
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/*
@@ -44,14 +44,14 @@
         ['preview', 'print'],
       ],
       formats: [
-        { tag: 'p', name: 'Paragraph' },
-        { tag: 'h1', name: 'Heading 1' },
-        { tag: 'h2', name: 'Heading 2' },
-        { tag: 'h3', name: 'Heading 3' },
-        { tag: 'h4', name: 'Heading 4' },
-        { tag: 'h5', name: 'Heading 5' },
-        { tag: 'h6', name: 'Heading 6' },
-        { tag: 'blockquote', name: 'Blockquote' },
+        'p',
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'h6',
+        'blockquote',
       ],
       font: null,
       fullScreenOffset: "60",
