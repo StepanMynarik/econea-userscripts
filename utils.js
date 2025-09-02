@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.38
+// @version      1.3.39
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/*
@@ -214,17 +214,10 @@
         }
 
         /* Match Shopify Admin UI font */
-        .se-wrapper-wysiwyg,
-        .se-wrapper-wysiwyg p,
-        .se-wrapper-wysiwyg h1,
-        .se-wrapper-wysiwyg h2,
-        .se-wrapper-wysiwyg h3,
-        .se-wrapper-wysiwyg h4,
-        .se-wrapper-wysiwyg h5,
-        .se-wrapper-wysiwyg h6,
-        .se-wrapper-wysiwyg blockquote {
-          font-family: -apple-system, BlinkMacSystemFont, "San Francisco",
-            "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
+        .sun-editor-editable {
+          font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif !important;
+          line-height: 1.4 !important;
+          font-size: 0.875rem !important;
         }
       `;
       // place at the top of the shadow root
