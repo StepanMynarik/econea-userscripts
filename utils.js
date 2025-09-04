@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.40
+// @version      1.4.0
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/*
@@ -39,6 +39,8 @@
         all: ".+",
       },
       attributesBlacklist: {
+        // Suneditor automatically wraps inline copy/pasted content in a `span` component with a `style` attribute.
+        // By blacklisting the `style` attribute on `span` components, it adds a "blank" span which it automatically discards afterwards. Problem solved.
         span: "style",
       },
       minHeight: '300px',
