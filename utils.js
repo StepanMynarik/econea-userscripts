@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Econea Utils
 // @namespace    https://econea.cz/
-// @version      1.3.39
+// @version      1.3.40
 // @description  Replaces specified Shopify metafield editors with Suneditor WYSIWYG editor etc.
 // @author       Stepan
 // @match        https://*.myshopify.com/admin/*
@@ -11,6 +11,8 @@
 // @resource     SuneditorCSS https://cdn.jsdelivr.net/npm/suneditor@2.47.7/dist/css/suneditor.min.css
 // @grant        GM_getResourceText
 // @license      MIT
+// @downloadURL https://update.greasyfork.org/scripts/538341/Econea%20Utils.user.js
+// @updateURL https://update.greasyfork.org/scripts/538341/Econea%20Utils.meta.js
 // ==/UserScript==
 
 (function() {
@@ -28,7 +30,17 @@
     debug: true,
 
     editorConfig: {
-      strictMode: false,
+      strictMode: true,
+      addTagsWhitelist: ".+",
+      pasteTagsWhitelist: ".+",
+      tagsBlacklist: "script",
+      pasteTagsBlacklist: "script",
+      attributesWhitelist: {
+        all: ".+",
+      },
+      attributesBlacklist: {
+        span: "style",
+      },
       minHeight: '300px',
       maxHeight: '600px',
       height: '300px',
@@ -56,6 +68,7 @@
       font: null,
       fullScreenOffset: "60",
       popupDisplay: "local",
+      historyStackDelayTime: 0,
     },
   };
 
@@ -195,10 +208,31 @@
       const editorWrapper = document.createElement('div');
       editorWrapper.className = 'wysiwyg-editor-wrapper';
       editorWrapper.style.position = 'relative';
-      
+
+      const keyHandler = (e) => {
+        switch (e.key) {
+          case "ArrowLeft":
+          case "ArrowUp":
+          case "ArrowRight":
+          case "ArrowDown":
+            break;
+          default:
+            // Prevent Shopify keyboard shortcuts from triggering when interacting with the WYSIWYG editor.
+            e.stopPropagation();
+            break;
+        }
+      };
+
+      editorWrapper.addEventListener("keydown", (e) => {
+        keyHandler(e);
+      }, true);
+      editorWrapper.addEventListener("keyup", (e) => {
+        keyHandler(e);
+      }, true);
+
       // Create Shadow DOM for style isolation
       const shadowRoot = editorWrapper.attachShadow({ mode: 'open' });
-      
+
       // Add custom styles to Shadow DOM
       const customStyles = document.createElement('style');
       customStyles.textContent = `
@@ -222,17 +256,17 @@
       `;
       // place at the top of the shadow root
       shadowRoot.insertBefore(customStyles, shadowRoot.firstChild);
-      
+
       const styleEl = document.createElement('style');
       styleEl.textContent = GM_getResourceText('SuneditorCSS');
       // place at the top of the shadow root
       shadowRoot.insertBefore(styleEl, shadowRoot.firstChild);
-      
+
       // Create editor div inside shadow DOM
       const editorId = 'wysiwyg-' + metafieldId + '-' + Date.now();
       const editorDiv = document.createElement('div');
       editorDiv.id = editorId;
-      
+
       shadowRoot.appendChild(editorDiv);
 
       // Replace the TextField but keep the original hidden
@@ -258,11 +292,7 @@
         // Clone the config and set up callbacks for this instance
         const instanceConfig = Object.assign({}, CONFIG.editorConfig);
 
-        // Set up content synchronization
-        let syncTimeout;
-        let userHasInteracted = false;
-
-        const syncContent = () => {
+        const syncContent = (triggerReactOnChange) => {
           try {
             const content = editor.getContents();
 
@@ -278,21 +308,23 @@
             const newValue = isEmpty ? '' : content;
 
             // Only trigger events if content actually changed AND it's not just empty formatting
-            if (oldValue !== newValue && (hasInitialContent || !isEmpty)) {
+            if ((oldValue !== newValue || triggerReactOnChange) && (hasInitialContent || !isEmpty)) {
               textarea.value = newValue;
 
-              // Also try to trigger Shopify React change detection
-              const reactProps = Object.keys(textarea).find(key => key.startsWith('__react'));
-              if (reactProps) {
-                const reactInternalInstance = textarea[reactProps];
-                if (reactInternalInstance && reactInternalInstance.memoizedProps && reactInternalInstance.memoizedProps.onChange) {
-                  try {
-                    reactInternalInstance.memoizedProps.onChange({
-                      target: textarea,
-                      currentTarget: textarea
-                    });
-                  } catch (e) {
-                    logError('React onChange trigger failed:', e);
+              if (triggerReactOnChange) {
+                // Also try to trigger Shopify React change detection
+                const reactProps = Object.keys(textarea).find(key => key.startsWith('__react'));
+                if (reactProps) {
+                  const reactInternalInstance = textarea[reactProps];
+                  if (reactInternalInstance && reactInternalInstance.memoizedProps && reactInternalInstance.memoizedProps.onChange) {
+                    try {
+                      reactInternalInstance.memoizedProps.onChange({
+                        target: textarea,
+                        currentTarget: textarea
+                      });
+                    } catch (e) {
+                      logError('React onChange trigger failed:', e);
+                    }
                   }
                 }
               }
@@ -315,24 +347,18 @@
 
         editor.onChange = (contents, core) => {
           log("onChange");
-          userHasInteracted = true;
-          clearTimeout(syncTimeout);
-          syncTimeout = setTimeout(syncContent, 300);
+          syncContent(true);
         };
-        
+
         editor.onBlur = (e, core) => {
           log("onBlur");
-          if (userHasInteracted) {
-            clearTimeout(syncTimeout);
-            syncContent();
-          }
+          syncContent(true);
         };
 
         // Set initial content after initialization
         if (hasInitialContent) {
           try {
             editor.setContents(initialContent);
-            userHasInteracted = false;
           } catch (e) {
             logError('Error setting initial content:', e);
           }
@@ -548,31 +574,6 @@
       logError('Error during cleanup:', error);
     }
   });
-
-  // Debug functions
-  window.debugWYSIWYG = {
-    processMetafields: processMetafields,
-    getInstances: () => suneditorInstances,
-    getProcessed: () => processedElements,
-    checkSuneditor: () => checkSuneditorAvailability(),
-    forceSync: () => {
-      suneditorInstances.forEach((instance, id) => {
-        try {
-          const content = instance.editor.getContents();
-          instance.originalTextarea.value = content;
-          instance.originalTextarea.dispatchEvent(new Event('input', {
-            bubbles: true
-          }));
-          instance.originalTextarea.dispatchEvent(new Event('change', {
-            bubbles: true
-          }));
-          log('Force synced:', instance.metafieldName);
-        } catch (e) {
-          logError('Error force syncing:', instance.metafieldName, e);
-        }
-      });
-    }
-  };
 
   log('Shopify Metafield WYSIWYG Editor script loaded successfully');
 })();
