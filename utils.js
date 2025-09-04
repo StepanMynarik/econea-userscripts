@@ -11,8 +11,6 @@
 // @resource     SuneditorCSS https://cdn.jsdelivr.net/npm/suneditor@2.47.7/dist/css/suneditor.min.css
 // @grant        GM_getResourceText
 // @license      MIT
-// @downloadURL https://update.greasyfork.org/scripts/538341/Econea%20Utils.user.js
-// @updateURL https://update.greasyfork.org/scripts/538341/Econea%20Utils.meta.js
 // ==/UserScript==
 
 (function() {
